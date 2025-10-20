@@ -1,0 +1,157 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "tsrmagazine",
+    "version" : "2025-07-24 11:41:25UTC"
+  },
+  "servers" : [ {
+    "url" : "https://xsm2xb1ymi.execute-api.ap-south-2.amazonaws.com/{basePath}",
+    "variables" : {
+      "basePath" : {
+        "default" : "dev"
+      }
+    }
+  } ],
+  "paths" : {
+    "/api-docs" : {
+      "get" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for GET /api-docs"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:getapi/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    },
+    "/dashboard" : {
+      "get" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for GET /dashboard"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:dashboardtest/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    },
+    "/dashboardtest" : {
+      "get" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for GET /dashboardtest"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:dashboardtest/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    },
+    "/faq" : {
+      "get" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for GET /faq"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:getdashboard/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    },
+    "/magazine" : {
+      "get" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for GET /magazine"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:getmagazine/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    },
+    "/reels" : {
+      "get" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for GET /reels"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:getreels/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    },
+    "/usermanuals" : {
+      "get" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for GET /usermanuals"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:getapplicationforms/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    },
+    "/feedback" : {
+      "post" : {
+        "responses" : {
+          "default" : {
+            "description" : "Default response for POST /feedback"
+          }
+        },
+        "x-amazon-apigateway-integration" : {
+          "payloadFormatVersion" : "2.0",
+          "type" : "aws_proxy",
+          "httpMethod" : "POST",
+          "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:postfeedback/invocations",
+          "connectionType" : "INTERNET"
+        }
+      }
+    }
+  },
+  "components" : {
+    "x-amazon-apigateway-integrations" : {
+      "unusedIntegration_6szwir4" : {
+        "payloadFormatVersion" : "2.0",
+        "type" : "aws_proxy",
+        "httpMethod" : "POST",
+        "uri" : "arn:aws:apigateway:ap-south-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-south-2:905444444327:function:dashboardtest/invocations",
+        "connectionType" : "INTERNET"
+      }
+    }
+  },
+  "x-amazon-apigateway-importexport-version" : "1.0"
+}
