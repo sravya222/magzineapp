@@ -25,18 +25,39 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Deploy Lambda Functions
+      # 3️⃣ Deploy Lambda Functions (no nested folders)
       - name: Deploy Lambda Functions
         run: |
-          echo "Deploying Lambda functions..."
-          for zip_file in lambda_functions/*.zip; do
-            LAMBDA_NAME=$(basename "$zip_file" .zip)
-            echo "📦 Updating $LAMBDA_NAME"
-            aws lambda update-function-code \
-              --function-name "$LAMBDA_NAME" \
-              --zip-file "fileb://$zip_file" \
-              --region $AWS_REGION
-            echo "✅ Updated $LAMBDA_NAME"
+          echo "📦 Deploying Lambda functions from folders..."
+          for dir in lambda_functions/*; do
+            if [ -d "$dir" ]; then
+              LAMBDA_NAME=$(basename "$dir")
+              echo "🔹 Packaging $LAMBDA_NAME"
+
+              # Zip contents at root (flatten structure)
+              zip -j "$LAMBDA_NAME.zip" "$dir"/*
+
+              # Check if Lambda exists
+              if aws lambda get-function --function-name "$LAMBDA_NAME" --region $AWS_REGION > /dev/null 2>&1; then
+                echo "🔄 Updating Lambda function: $LAMBDA_NAME"
+                aws lambda update-function-code \
+                  --function-name "$LAMBDA_NAME" \
+                  --zip-file "fileb://$LAMBDA_NAME.zip" \
+                  --region $AWS_REGION
+              else
+                echo "➕ Creating Lambda function: $LAMBDA_NAME"
+                aws lambda create-function \
+                  --function-name "$LAMBDA_NAME" \
+                  --runtime nodejs18.x \
+                  --role ${{ secrets.LAMBDA_ROLE_ARN }} \
+                  --handler index.handler \
+                  --zip-file "fileb://$LAMBDA_NAME.zip" \
+                  --region $AWS_REGION
+              fi
+
+              echo "✅ Deployed $LAMBDA_NAME"
+              rm -f "$LAMBDA_NAME.zip"
+            fi
           done
 
       # 4️⃣ Deploy API Gateway (Single JSON file)
