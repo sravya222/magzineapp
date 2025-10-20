@@ -38,12 +38,16 @@ jobs:
           done
 
           # 5️⃣ Deploy API Gateway (HTTP APIs)
+        # 5️⃣ Deploy API Gateway (Single JSON file)
       - name: Deploy API Gateway
         run: |
-          for api_file in apis.json; do
-            API_NAME=$(basename "$api_file" .json)
-            echo "Deploying API: $API_NAME"
-            aws apigatewayv2 import-api \
+             if [ -f "apis.json" ]; then
+               echo "Deploying API from apis.json"
+              aws apigatewayv2 import-api \
               --region $AWS_REGION \
-              --body "file://$api_file"
-          done
+               --body "file://apis.json"
+             else
+                 echo "⚠️ No apis.json file found in repository root"
+               fi
+                done       
+
