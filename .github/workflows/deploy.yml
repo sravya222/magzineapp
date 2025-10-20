@@ -25,29 +25,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Deploy Lambda Functions (from folder, no zip)
+      # 3️⃣ Deploy Lambda Functions
       - name: Deploy Lambda Functions
         run: |
-          echo "Deploying Lambda functions from folders..."
-          for dir in lambda_functions/*; do
-            if [ -d "$dir" ]; then
-              LAMBDA_NAME=$(basename "$dir")
-              echo "📦 Packaging and updating $LAMBDA_NAME"
-
-              # Create a temp zip from folder contents (index.js at root)
-              cd "$dir"
-              zip -r "../../$LAMBDA_NAME.zip" . >/dev/null
-              cd ../../
-
-              # Update Lambda
-              aws lambda update-function-code \
-                --function-name "$LAMBDA_NAME" \
-                --zip-file "fileb://$LAMBDA_NAME.zip" \
-                --region $AWS_REGION
-
-              echo "✅ Updated $LAMBDA_NAME"
-              rm -f "$LAMBDA_NAME.zip"
-            fi
+          echo "Deploying Lambda functions..."
+          for zip_file in lambda_functions/*.zip; do
+            LAMBDA_NAME=$(basename "$zip_file" .zip)
+            echo "📦 Updating $LAMBDA_NAME"
+            aws lambda update-function-code \
+              --function-name "$LAMBDA_NAME" \
+              --zip-file "fileb://$zip_file" \
+              --region $AWS_REGION
+            echo "✅ Updated $LAMBDA_NAME"
           done
 
       # 4️⃣ Deploy API Gateway (Single JSON file)
