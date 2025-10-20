@@ -1,0 +1,58 @@
+name: Deploy AWS Resources
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ap-south-2  # 👈 Set region here once and use everywhere
+
+    steps:
+      # 1️⃣ Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}  # 👈 Uses the env variable
+
+      # 3️⃣ Deploy Lambda Functions
+      - name: Deploy Lambda Functions
+        run: |
+          for file in lambda_functions/*.zip; do
+            LAMBDA_NAME=$(basename "$file" .zip)
+            echo "Deploying $LAMBDA_NAME"
+            aws lambda update-function-code \
+              --function-name "$LAMBDA_NAME" \
+              --zip-file "fileb://$file" \
+              --region $AWS_REGION
+          done
+
+      # 4️⃣ Sync S3 Buckets
+      - name: Sync S3 Buckets
+        run: |
+          for bucket_dir in s3_buckets/*; do
+            BUCKET_NAME=$(basename "$bucket_dir")
+            echo "Syncing $BUCKET_NAME"
+            aws s3 sync "$bucket_dir" "s3://$BUCKET_NAME" --delete --region $AWS_REGION
+          done
+
+      # 5️⃣ Deploy API Gateway (HTTP APIs)
+      - name: Deploy API Gateway
+        run: |
+          for api_file in apis/*.json; do
+            API_NAME=$(basename "$api_file" .json)
+            echo "Deploying API: $API_NAME"
+            aws apigatewayv2 import-api \
+              --region $AWS_REGION \
+              --body "file://$api_file"
+          done
