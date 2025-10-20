@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-south-2  # 👈 Set your region here
+      AWS_REGION: ap-south-2  # Set your AWS region here
 
     steps:
-      # 1️⃣ Checkout the repository
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -25,34 +25,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Deploy Lambda Functions
+      # 3️⃣ Deploy Lambda Functions (from folder, no zip)
       - name: Deploy Lambda Functions
         run: |
-          for lambda_dir in lambda_functions/*; do
-            if [ -d "$lambda_dir" ]; then
-              LAMBDA_NAME=$(basename "$lambda_dir")
-              echo "Packaging $LAMBDA_NAME"
-              
-              # Flatten folder into ZIP (index.js at root)
-              zip_file="/tmp/$LAMBDA_NAME.zip"
-              rm -f "$zip_file"
-              cd "$lambda_dir"
-              zip -r "$zip_file" . > /dev/null
-              cd - > /dev/null
+          echo "Deploying Lambda functions from folders..."
+          for dir in lambda_functions/*; do
+            if [ -d "$dir" ]; then
+              LAMBDA_NAME=$(basename "$dir")
+              echo "📦 Packaging and updating $LAMBDA_NAME"
 
-              echo "Deploying $LAMBDA_NAME"
+              # Create a temp zip from folder contents (index.js at root)
+              cd "$dir"
+              zip -r "../../$LAMBDA_NAME.zip" . >/dev/null
+              cd ../../
+
+              # Update Lambda
               aws lambda update-function-code \
                 --function-name "$LAMBDA_NAME" \
-                --zip-file "fileb://$zip_file" \
+                --zip-file "fileb://$LAMBDA_NAME.zip" \
                 --region $AWS_REGION
+
+              echo "✅ Updated $LAMBDA_NAME"
+              rm -f "$LAMBDA_NAME.zip"
             fi
           done
 
-      # 4️⃣ Deploy API Gateway (single JSON file)
+      # 4️⃣ Deploy API Gateway (Single JSON file)
       - name: Deploy API Gateway
         run: |
           if [ -f "apis.json" ]; then
-            echo "Deploying API from apis.json"
+            echo "🌐 Deploying API from apis.json"
             aws apigatewayv2 import-api \
               --region $AWS_REGION \
               --body "file://apis.json"
