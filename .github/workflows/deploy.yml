@@ -40,7 +40,7 @@ jobs:
           # 5️⃣ Deploy API Gateway (HTTP APIs)
       - name: Deploy API Gateway
         run: |
-          for api_file in apis/*.json; do
+          for api_file in apis.json; do
             API_NAME=$(basename "$api_file" .json)
             echo "Deploying API: $API_NAME"
             aws apigatewayv2 import-api \
