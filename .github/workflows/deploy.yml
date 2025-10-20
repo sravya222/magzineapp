@@ -37,16 +37,7 @@ jobs:
               --region $AWS_REGION
           done
 
-      # 4️⃣ Sync S3 Buckets
-      - name: Sync S3 Buckets
-        run: |
-          for bucket_dir in s3_buckets/*; do
-            BUCKET_NAME=$(basename "$bucket_dir")
-            echo "Syncing $BUCKET_NAME"
-            aws s3 sync "$bucket_dir" "s3://$BUCKET_NAME" --delete --region $AWS_REGION
-          done
-
-      # 5️⃣ Deploy API Gateway (HTTP APIs)
+          # 5️⃣ Deploy API Gateway (HTTP APIs)
       - name: Deploy API Gateway
         run: |
           for api_file in apis/*.json; do
