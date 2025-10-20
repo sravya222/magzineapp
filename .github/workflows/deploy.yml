@@ -68,3 +68,4 @@ jobs:
               --body "file://apis.json"
           else
             echo "⚠️ No apis.json file found in repository root"
+            fi
