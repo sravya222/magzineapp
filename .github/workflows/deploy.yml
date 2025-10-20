@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-south-2  # Set your AWS region here
+      AWS_REGION: ap-south-2  # 👈 Set your region here
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -28,44 +28,34 @@ jobs:
       # 3️⃣ Deploy Lambda Functions
       - name: Deploy Lambda Functions
         run: |
-          echo "Deploying Lambda functions..."
-          mkdir -p temp_lambda
+          for lambda_dir in lambda_functions/*; do
+            if [ -d "$lambda_dir" ]; then
+              LAMBDA_NAME=$(basename "$lambda_dir")
+              echo "Packaging $LAMBDA_NAME"
+              
+              # Flatten folder into ZIP (index.js at root)
+              zip_file="/tmp/$LAMBDA_NAME.zip"
+              rm -f "$zip_file"
+              cd "$lambda_dir"
+              zip -r "$zip_file" . > /dev/null
+              cd - > /dev/null
 
-          for file in lambda_functions/*.zip; do
-            LAMBDA_NAME=$(basename "$file" .zip)
-            echo "📦 Processing $LAMBDA_NAME"
-
-            # Unzip the function to a temporary folder
-            rm -rf temp_lambda/*
-            unzip -q "$file" -d temp_lambda
-
-            # Re-zip so files are at root
-            cd temp_lambda
-            zip -r "../$LAMBDA_NAME.zip" . >/dev/null
-            cd ..
-
-            # Deploy to AWS Lambda
-            aws lambda update-function-code \
-              --function-name "$LAMBDA_NAME" \
-              --zip-file "fileb://$LAMBDA_NAME.zip" \
-              --region $AWS_REGION
-
-            echo "✅ Deployed $LAMBDA_NAME"
-
-            # Clean up
-            rm -f "$LAMBDA_NAME.zip"
+              echo "Deploying $LAMBDA_NAME"
+              aws lambda update-function-code \
+                --function-name "$LAMBDA_NAME" \
+                --zip-file "fileb://$zip_file" \
+                --region $AWS_REGION
+            fi
           done
 
-          rm -rf temp_lambda
-
-      # 4️⃣ Deploy API Gateway (Single JSON file)
+      # 4️⃣ Deploy API Gateway (single JSON file)
       - name: Deploy API Gateway
         run: |
           if [ -f "apis.json" ]; then
-            echo "🌐 Deploying API from apis.json"
+            echo "Deploying API from apis.json"
             aws apigatewayv2 import-api \
               --region $AWS_REGION \
               --body "file://apis.json"
           else
             echo "⚠️ No apis.json file found in repository root"
-            fi
+          fi
