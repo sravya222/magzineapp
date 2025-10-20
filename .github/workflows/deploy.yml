@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-south-2  # 👈 Set region here once and use everywhere
+      AWS_REGION: ap-south-2  # Set your AWS region here
 
     steps:
-      # 1️⃣ Checkout the repo
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -23,53 +23,48 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}  # 👈 Uses the env variable
+          aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Deploy Lambda Functions
       # 3️⃣ Deploy Lambda Functions
       - name: Deploy Lambda Functions
-    run: |
-      echo "Deploying Lambda functions..."
-      mkdir -p temp_lambda
+        run: |
+          echo "Deploying Lambda functions..."
+          mkdir -p temp_lambda
 
-      for file in lambda_functions/*.zip; do
-      LAMBDA_NAME=$(basename "$file" .zip)
-      echo "📦 Processing $LAMBDA_NAME"
+          for file in lambda_functions/*.zip; do
+            LAMBDA_NAME=$(basename "$file" .zip)
+            echo "📦 Processing $LAMBDA_NAME"
 
-      # Unzip the function to a temporary folder
-      rm -rf temp_lambda/*
-      unzip -q "$file" -d temp_lambda
+            # Unzip the function to a temporary folder
+            rm -rf temp_lambda/*
+            unzip -q "$file" -d temp_lambda
 
-      # Re-zip so files are at root
-      cd temp_lambda
-      zip -r "../$LAMBDA_NAME.zip" . >/dev/null
-      cd ..
+            # Re-zip so files are at root
+            cd temp_lambda
+            zip -r "../$LAMBDA_NAME.zip" . >/dev/null
+            cd ..
 
-      # Deploy to AWS Lambda
-      aws lambda update-function-code \
-        --function-name "$LAMBDA_NAME" \
-        --zip-file "fileb://$LAMBDA_NAME.zip" \
-        --region $AWS_REGION
+            # Deploy to AWS Lambda
+            aws lambda update-function-code \
+              --function-name "$LAMBDA_NAME" \
+              --zip-file "fileb://$LAMBDA_NAME.zip" \
+              --region $AWS_REGION
 
-      echo "✅ Deployed $LAMBDA_NAME"
+            echo "✅ Deployed $LAMBDA_NAME"
 
-      # Clean up
-      rm -f "$LAMBDA_NAME.zip"
-done
- # Remove temp folder
-     rm -rf temp_lambda
+            # Clean up
+            rm -f "$LAMBDA_NAME.zip"
+          done
 
-        # 5️⃣ Deploy API Gateway (HTTP APIs)
-        # 5️⃣ Deploy API Gateway (Single JSON file)
+          rm -rf temp_lambda
+
+      # 4️⃣ Deploy API Gateway (Single JSON file)
       - name: Deploy API Gateway
         run: |
-             if [ -f "apis.json" ]; then
-               echo "Deploying API from apis.json"
-              aws apigatewayv2 import-api \
+          if [ -f "apis.json" ]; then
+            echo "🌐 Deploying API from apis.json"
+            aws apigatewayv2 import-api \
               --region $AWS_REGION \
-               --body "file://apis.json"
-             else
-                 echo "⚠️ No apis.json file found in repository root"
-               fi
-                      
-
+              --body "file://apis.json"
+          else
+            echo "⚠️ No apis.json file found in repository root"
