@@ -1,4 +1,4 @@
-name: Deploy AWS Lambda & API Gateway
+name: Deploy AWS Lambda and API Gateway (Update Only)
 
 on:
   push:
@@ -25,52 +25,44 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Deploy Lambda Functions (Flat — no nested folders)
-      - name: Deploy Lambda Functions
+      # 3️⃣ Update existing Lambda functions only
+      - name: Update existing Lambda functions
         run: |
-          echo "🚀 Deploying Lambda functions (no nested folders)..."
-          
-          for dir in lambda_functions/*; do
-            if [ -d "$dir" ]; then
-              LAMBDA_NAME=$(basename "$dir")
-              echo "🔹 Packaging $LAMBDA_NAME"
+          echo "📦 Updating Lambda functions (skipping creation)..."
+          for file in lambda_functions/*.zip; do
+            LAMBDA_NAME=$(basename "$file" .zip)
+            echo "🔹 Checking $LAMBDA_NAME"
 
-              # Ensure we zip only the contents, not the folder itself
-              cd "$dir"
-              zip -r "../../${LAMBDA_NAME}.zip" . >/dev/null
-              cd - >/dev/null
-
-              # Check if Lambda exists
-              if aws lambda get-function --function-name "$LAMBDA_NAME" --region $AWS_REGION > /dev/null 2>&1; then
-                echo "🔄 Updating existing Lambda: $LAMBDA_NAME"
-                aws lambda update-function-code \
-                  --function-name "$LAMBDA_NAME" \
-                  --zip-file "fileb://${LAMBDA_NAME}.zip" \
-                  --region $AWS_REGION
-              else
-                echo "🆕 Creating new Lambda: $LAMBDA_NAME"
-                aws lambda create-function \
-                  --function-name "$LAMBDA_NAME" \
-                  --runtime nodejs18.x \
-                  --role ${{ secrets.LAMBDA_ROLE_ARN }} \
-                  --handler index.handler \
-                  --zip-file "fileb://${LAMBDA_NAME}.zip" \
-                  --region $AWS_REGION
-              fi
-
-              echo "✅ Lambda $LAMBDA_NAME deployed."
-              rm -f "${LAMBDA_NAME}.zip"
+            if aws lambda get-function --function-name "$LAMBDA_NAME" --region $AWS_REGION > /dev/null 2>&1; then
+              echo "🔄 Updating Lambda function: $LAMBDA_NAME"
+              aws lambda update-function-code \
+                --function-name "$LAMBDA_NAME" \
+                --zip-file "fileb://$file" \
+                --region $AWS_REGION
+            else
+              echo "⚠️ Lambda $LAMBDA_NAME does not exist — skipping creation"
             fi
           done
 
-      # 4️⃣ Deploy API Gateway (Single JSON)
-      - name: Deploy API Gateway
+      # 4️⃣ Update existing API Gateway (skip creation)
+      - name: Update existing API Gateway
         run: |
           if [ -f "apis.json" ]; then
-            echo "🌐 Deploying API from apis.json"
-            aws apigatewayv2 import-api \
-              --region $AWS_REGION \
-              --body "file://apis.json"
+            echo "🌐 Checking existing APIs..."
+
+            # Fetch API by name from apis.json (assuming "Name" field exists)
+            API_NAME=$(jq -r '.Name' apis.json)
+            API_ID=$(aws apigatewayv2 get-apis --region $AWS_REGION --query "Items[?Name=='$API_NAME'].ApiId" --output text)
+
+            if [ -n "$API_ID" ]; then
+              echo "🔄 Updating API Gateway: $API_NAME ($API_ID)"
+              aws apigatewayv2 update-api \
+                --api-id "$API_ID" \
+                --region $AWS_REGION \
+                --cli-input-json "file://apis.json"
+            else
+              echo "⚠️ API named '$API_NAME' not found — skipping creation"
+            fi
           else
-            echo "⚠️ No apis.json file found in root directory"
+            echo "⚠️ No apis.json file found in repository root"
           fi
