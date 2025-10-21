@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-south-2  # Set your AWS region
+      AWS_REGION: ap-south-2  # Set your AWS region here
 
     steps:
       # 1️⃣ Checkout repository
@@ -25,7 +25,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Update existing Lambda functions (flattened)
+      # 3️⃣ Update existing Lambda functions (flattened ZIPs)
       - name: Update existing Lambda functions
         run: |
           echo "📦 Updating Lambda functions..."
@@ -35,23 +35,23 @@ jobs:
             LAMBDA_NAME=$(basename "$file" .zip)
             echo "🔹 Processing $LAMBDA_NAME"
 
-            # Extract ZIP
+            # Extract ZIP to temp folder
             rm -rf temp_lambda/*
             unzip -q "$file" -d temp_lambda
 
-            # Flatten folder structure (index.js at root)
+            # Flatten structure: move all files to root
             INNER_DIR=$(find temp_lambda -mindepth 1 -maxdepth 1 -type d | head -n 1 || true)
             if [ -n "$INNER_DIR" ]; then
               mv "$INNER_DIR"/* temp_lambda/
               rm -rf "$INNER_DIR"
             fi
 
-            # Re-zip flat structure
+            # Re-zip flattened folder
             cd temp_lambda
             zip -r "../$LAMBDA_NAME.zip" . >/dev/null
             cd ..
 
-            # Update Lambda function (skip creation)
+            # Update Lambda code (skip creation)
             if aws lambda get-function --function-name "$LAMBDA_NAME" --region $AWS_REGION > /dev/null 2>&1; then
               echo "🔄 Updating Lambda: $LAMBDA_NAME"
               aws lambda update-function-code \
@@ -68,7 +68,7 @@ jobs:
           rm -rf temp_lambda
           echo "✅ Lambda update complete"
 
-      # 4️⃣ Deploy API Gateway (safe update)
+      # 4️⃣ Deploy API Gateway (OpenAPI JSON)
       - name: Deploy API Gateway
         run: |
           if [ -f "apis.json" ]; then
@@ -80,16 +80,17 @@ jobs:
               --output text)
 
             if [ -n "$EXISTING_API_ID" ] && [ "$EXISTING_API_ID" != "None" ]; then
-              echo "🔄 Updating existing API (ID: $EXISTING_API_ID)"
-              aws apigatewayv2 update-api \
-                --cli-input-json file://apis.json \
-                --api-id "$EXISTING_API_ID" \
-                --region $AWS_REGION
-            else
-              echo "🆕 No existing API found — importing new API"
+              echo "🔄 Re-importing existing API (ID: $EXISTING_API_ID)"
               aws apigatewayv2 import-api \
-                --cli-input-json file://apis.json \
-                --region $AWS_REGION
+                --body file://apis.json \
+                --region $AWS_REGION \
+                --fail-on-warnings
+            else
+              echo "🆕 Importing new API"
+              aws apigatewayv2 import-api \
+                --body file://apis.json \
+                --region $AWS_REGION \
+                --fail-on-warnings
             fi
           else
             echo "⚠️ apis.json not found — skipping API deployment"
