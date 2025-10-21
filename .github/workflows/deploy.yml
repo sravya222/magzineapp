@@ -1,4 +1,4 @@
-name: Deploy AWS Lambda and API Gateway (Update Only)
+name: Deploy AWS Resources
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-south-2
+      AWS_REGION: ap-south-2  # 👈 Set your AWS region
 
     steps:
       # 1️⃣ Checkout repository
@@ -25,44 +25,68 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Update existing Lambda functions only
-      - name: Update existing Lambda functions
+      # 3️⃣ Update existing Lambda functions (flattened zips)
+      - name: Update existing Lambda functions (flattened)
         run: |
-          echo "📦 Updating Lambda functions (skipping creation)..."
+          echo "📦 Updating Lambda functions..."
+          mkdir -p temp_lambda
+
           for file in lambda_functions/*.zip; do
             LAMBDA_NAME=$(basename "$file" .zip)
-            echo "🔹 Checking $LAMBDA_NAME"
+            echo "🔹 Processing $LAMBDA_NAME"
 
+            # Extract ZIP
+            rm -rf temp_lambda/*
+            unzip -q "$file" -d temp_lambda
+
+            # Flatten structure if nested
+            INNER_DIR=$(find temp_lambda -mindepth 1 -maxdepth 1 -type d | head -n 1 || true)
+            if [ -n "$INNER_DIR" ]; then
+              mv "$INNER_DIR"/* temp_lambda/
+              rm -rf "$INNER_DIR"
+            fi
+
+            # Re-zip flat structure
+            cd temp_lambda
+            zip -r "../$LAMBDA_NAME.zip" . >/dev/null
+            cd ..
+
+            # Update Lambda code (skip creation)
             if aws lambda get-function --function-name "$LAMBDA_NAME" --region $AWS_REGION > /dev/null 2>&1; then
-              echo "🔄 Updating Lambda function: $LAMBDA_NAME"
+              echo "🔄 Updating Lambda: $LAMBDA_NAME"
               aws lambda update-function-code \
                 --function-name "$LAMBDA_NAME" \
-                --zip-file "fileb://$file" \
+                --zip-file "fileb://$LAMBDA_NAME.zip" \
                 --region $AWS_REGION
             else
               echo "⚠️ Lambda $LAMBDA_NAME does not exist — skipping creation"
             fi
+
+            rm -f "$LAMBDA_NAME.zip"
           done
 
-      # 4️⃣ Update existing API Gateway (skip creation)
-      - name: Update existing API Gateway
+          rm -rf temp_lambda
+          echo "✅ Lambda update complete"
+
+      # 4️⃣ Deploy API Gateway safely (no duplicates)
+      - name: Deploy API Gateway (safe update)
         run: |
           if [ -f "apis.json" ]; then
-            echo "🌐 Checking existing APIs..."
+            echo "🌐 Checking for existing API..."
+            EXISTING_API_ID=$(aws apigatewayv2 get-apis --region $AWS_REGION --query "Items[?Name=='tsrmagazine'].ApiId" --output text)
 
-            # Fetch API by name from apis.json (assuming "Name" field exists)
-            API_NAME=$(jq -r '.Name' apis.json)
-            API_ID=$(aws apigatewayv2 get-apis --region $AWS_REGION --query "Items[?Name=='$API_NAME'].ApiId" --output text)
-
-            if [ -n "$API_ID" ]; then
-              echo "🔄 Updating API Gateway: $API_NAME ($API_ID)"
+            if [ -n "$EXISTING_API_ID" ] && [ "$EXISTING_API_ID" != "None" ]; then
+              echo "🔄 Updating existing API (ID: $EXISTING_API_ID)"
               aws apigatewayv2 update-api \
-                --api-id "$API_ID" \
+                --api-id "$EXISTING_API_ID" \
                 --region $AWS_REGION \
-                --cli-input-json "file://apis.json"
+                --body "file://apis.json"
             else
-              echo "⚠️ API named '$API_NAME' not found — skipping creation"
+              echo "🆕 No existing API found named 'tsrmagazine' — creating new one"
+              aws apigatewayv2 import-api \
+                --region $AWS_REGION \
+                --body "file://apis.json"
             fi
           else
-            echo "⚠️ No apis.json file found in repository root"
+            echo "⚠️ apis.json not found — skipping API deployment"
           fi
