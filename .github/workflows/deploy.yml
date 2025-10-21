@@ -1,4 +1,4 @@
-name: Deploy AWS Resources
+name: Deploy AWS Lambda & API Gateway
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-south-2  # Set your AWS region here
+      AWS_REGION: ap-south-2
 
     steps:
       # 1️⃣ Checkout repository
@@ -25,52 +25,45 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3️⃣ Deploy Lambda Functions (flattened)
+      # 3️⃣ Deploy Lambda Functions (Flat — no nested folders)
       - name: Deploy Lambda Functions
         run: |
-          echo "📦 Deploying Lambda functions from folders..."
+          echo "🚀 Deploying Lambda functions (no nested folders)..."
+          
           for dir in lambda_functions/*; do
             if [ -d "$dir" ]; then
               LAMBDA_NAME=$(basename "$dir")
               echo "🔹 Packaging $LAMBDA_NAME"
 
-              # Create temp folder
-              TEMP_DIR="temp_lambda_$LAMBDA_NAME"
-              rm -rf "$TEMP_DIR"
-              mkdir "$TEMP_DIR"
-
-              # Copy all files from nested folders to temp folder (flatten)
-              find "$dir" -type f -exec cp {} "$TEMP_DIR"/ \;
-
-              # Zip flattened files
-              zip -r "$LAMBDA_NAME.zip" "$TEMP_DIR"/*
+              # Ensure we zip only the contents, not the folder itself
+              cd "$dir"
+              zip -r "../../${LAMBDA_NAME}.zip" . >/dev/null
+              cd - >/dev/null
 
               # Check if Lambda exists
               if aws lambda get-function --function-name "$LAMBDA_NAME" --region $AWS_REGION > /dev/null 2>&1; then
-                echo "🔄 Updating Lambda function: $LAMBDA_NAME"
+                echo "🔄 Updating existing Lambda: $LAMBDA_NAME"
                 aws lambda update-function-code \
                   --function-name "$LAMBDA_NAME" \
-                  --zip-file "fileb://$LAMBDA_NAME.zip" \
+                  --zip-file "fileb://${LAMBDA_NAME}.zip" \
                   --region $AWS_REGION
               else
-                echo "➕ Creating Lambda function: $LAMBDA_NAME"
+                echo "🆕 Creating new Lambda: $LAMBDA_NAME"
                 aws lambda create-function \
                   --function-name "$LAMBDA_NAME" \
                   --runtime nodejs18.x \
                   --role ${{ secrets.LAMBDA_ROLE_ARN }} \
                   --handler index.handler \
-                  --zip-file "fileb://$LAMBDA_NAME.zip" \
+                  --zip-file "fileb://${LAMBDA_NAME}.zip" \
                   --region $AWS_REGION
               fi
 
-              echo "✅ Deployed $LAMBDA_NAME"
-
-              # Cleanup
-              rm -rf "$TEMP_DIR" "$LAMBDA_NAME.zip"
+              echo "✅ Lambda $LAMBDA_NAME deployed."
+              rm -f "${LAMBDA_NAME}.zip"
             fi
           done
 
-      # 4️⃣ Deploy API Gateway (Single JSON file)
+      # 4️⃣ Deploy API Gateway (Single JSON)
       - name: Deploy API Gateway
         run: |
           if [ -f "apis.json" ]; then
@@ -79,5 +72,5 @@ jobs:
               --region $AWS_REGION \
               --body "file://apis.json"
           else
-            echo "⚠️ No apis.json file found in repository root"
+            echo "⚠️ No apis.json file found in root directory"
           fi
